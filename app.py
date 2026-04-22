@@ -1,6 +1,9 @@
 import streamlit as st
 import joblib
 import pandas as pd
+from pathlib import Path
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
 
 # Page settings
 st.set_page_config(
@@ -9,8 +12,30 @@ st.set_page_config(
     layout="centered"
 )
 
-# Load model
-model = joblib.load("model.pkl")
+MODEL_PATH = Path("model.pkl")
+DATA_PATH = Path("data.csv")
+
+
+def load_or_train_model():
+    if MODEL_PATH.exists():
+        return joblib.load(MODEL_PATH)
+
+    data = pd.read_csv(DATA_PATH)
+    X = data.drop("Outcome", axis=1)
+    y = data["Outcome"]
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+
+    model = RandomForestClassifier(random_state=42)
+    model.fit(X_train, y_train)
+
+    joblib.dump(model, MODEL_PATH)
+    return model
+
+
+model = load_or_train_model()
 
 # Custom styling
 st.markdown("""
@@ -36,17 +61,9 @@ st.markdown("""
         margin-bottom: 0.8rem;
         color: #111827;
     }
-    .card {
-        padding: 1rem;
-        border-radius: 12px;
-        background-color: #f9fafb;
-        border: 1px solid #e5e7eb;
-        margin-bottom: 1rem;
-    }
     </style>
 """, unsafe_allow_html=True)
 
-# Header
 st.markdown('<div class="title">Diabetes Risk Prediction App</div>',
             unsafe_allow_html=True)
 st.markdown(
@@ -56,7 +73,6 @@ st.markdown(
 
 st.info("This app is for educational purposes only and is not a medical diagnostic tool.")
 
-# Input section
 st.markdown('<div class="section-title">Patient Information</div>',
             unsafe_allow_html=True)
 
@@ -78,9 +94,6 @@ with col2:
                           min_value=0.0, max_value=3.0, value=0.5)
     age = st.number_input("Age", min_value=1, max_value=120, value=30)
 
-st.markdown("")
-
-# Prediction button
 if st.button("Predict Risk", use_container_width=True):
     input_data = pd.DataFrame([{
         "Pregnancies": pregnancies,
@@ -109,6 +122,5 @@ if st.button("Predict Risk", use_container_width=True):
     with st.expander("View Entered Patient Data"):
         st.dataframe(input_data, use_container_width=True)
 
-# Footer
 st.markdown("---")
 st.caption("Built with Python, scikit-learn, and Streamlit.")
